@@ -1,0 +1,133 @@
+# September 14 lecture
+
+We did a bunch of simulations this lecture (as a substitute for math) to show properties of certain statistics 
+with data that potentially have random walk behavior.
+
+Calculatin the tenth-life for different AR(1) coefficients:
+
+```
+log(0.1)/log(0.6)
+log(0.1)/log(0.8)
+log(0.1)/log(0.95)
+log(0.1)/log(0.99)
+```
+
+The last implies there are only about four non-overlapping observations in a sample of 1000 observations.
+While that's not the same as having only four observations, it is also not the same as having the
+variation present in 1000 independent observations.
+
+```
+1000/229
+```
+
+Imagine calculating a correlation with only five observations. The estimates would be all over the place, even
+though we know the true correlation is zero.
+
+```
+simoutput <- replicate(1000, {
+  y <- rnorm(5)
+  x <- rnorm(5)
+  cor(y,x)
+})
+plot(density(simoutput))
+```
+
+With 250 observations, we no longer get the large correlations. It starts to behave as expected.
+
+```
+simoutput <- replicate(1000, {
+  y <- rnorm(250)
+  x <- rnorm(250)
+  cor(y,x)
+})
+plot(density(simoutput))
+```
+
+Here's a function that takes `nobs` (number of observations of each variable) and `ar1` (the AR(1) coefficient)
+as arguments, and calculates the correlation between the two simulated variables.
+
+```
+dosim <- function(nobs, ar1) {
+  simoutput <- replicate(1000, {
+    y <- arima.sim(list(ar=ar1),
+                        n=nobs)
+    x <- arima.sim(list(ar=ar1),
+                   n=nobs)
+    cor(y, x)
+  })
+  plot(density(simoutput))
+}
+```
+
+We see that as the number of non-overlapping observations decreases (greater persistence), the wider the
+distribution.
+
+```
+dosim(100, 0.8)
+dosim(500, 0.8)
+dosim(1000, 0.8)
+dosim(100, 0.9)
+dosim(500, 0.9)
+dosim(1000, 0.9)
+dosim(100, 0.99)
+dosim(500, 0.99)
+dosim(1000, 0.99)
+```
+
+The variance of a random walk increases over time:
+
+```
+set.seed(800)
+output <- replicate(100, {
+  sum(rnorm(500))
+})
+var(output)
+
+set.seed(800)
+output <- replicate(100, {
+  sum(rnorm(50000))
+})
+var(output)
+```
+
+The variance of a stationary series does not increase over time:
+
+```
+set.seed(800)
+output <- replicate(100, {
+  arima.sim(list(ar=0.5),
+            n=500)[500]
+})
+var(output)
+
+set.seed(800)
+output <- replicate(100, {
+  arima.sim(list(ar=0.5),
+            n=5000)[5000]
+})
+var(output)
+
+set.seed(800)
+output <- replicate(100, {
+  arima.sim(list(ar=0.5),
+            n=50000)[50000]
+})
+var(output)
+```
+
+The Dickey-Fuller test has a non-standard distribution because of the strange
+distribution of $\widehat{\beta}$.
+
+```
+dosim <- function(nobs) {
+  simoutput <- replicate(1000, {
+    e <- rnorm(nobs)
+    y <- ts(cumsum(e))
+    fit <- tsreg(y, lags(y,1))
+    coefficients(fit)[2]
+  })
+  plot(density(simoutput))
+}
+dosim(100)
+dosim(1000)
+```
